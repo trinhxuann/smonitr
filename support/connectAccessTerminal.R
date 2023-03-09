@@ -1,13 +1,17 @@
-if (!exists("Args")) {
-  Args <- commandArgs(T)
+Args <- commandArgs(T)
 
-  file <- Args[1]
-  out <- Args[2]
-  tables <- Args[3:length(Args)]
+file <- Args[1]
+rBit <- Args[3]
+officeBit <- Args[4]
+out <- Args[5]
 
-  con <- connect_access(file)
+tables <- Args[6:length(Args)]
 
-  extract_tables(con = con,
-                 tables = tables,
-                 out = out)
-}
+con <- smonitr:::connectAccess(file)
+
+smonitr:::extractTables(con = con,
+                        tables = tables,
+                        rBit = rBit,
+                        officeBit = officeBit,
+                        out = out)
+

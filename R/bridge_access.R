@@ -57,14 +57,16 @@ architectureCheck <- function(officeBit = NULL) {
 #' @param path File path to database.
 #' @param driver ODBC driver. Defaults to using the Access drivers.
 #' @param uid Username credential, if applicable to your database.
-#' @param pwd Password crednetial, if applicable to your database.
+#' @param pwd Password credential, if applicable to your database.
 #'
 #' @return A DBIConnection object to allow interactions with the database.
 #'
 #' @noRd
+#' @importFrom DBI dbConnect
+#' @importFrom odbc odbc
 #' @keywords internal
 
-connect_access <- function(path,
+connectAccess <- function(path,
                            driver = "Microsoft Access Driver (*.mdb, *.accdb)", uid = "", pwd = "") {
 
   file <- normalizePath(path, winslash = "\\")
@@ -78,7 +80,7 @@ connect_access <- function(path,
 
   tryCatch(DBI::dbConnect(drv = odbc::odbc(), .connection_string = dbString),
            error = function(cond) {
-             if (all(stringr::str_detect(cond$message, c("IM002", "ODBC Driver Manager")))) {
+             if (grepl(c("IM002.*ODBC Driver Manager"), cond$message)) {
                message(cond, "\n")
                message("IM002 and ODBC Driver Manager error generally means a 32-bit R needs to be installed or used.")
              } else {
@@ -97,7 +99,7 @@ connect_access <- function(path,
 #'
 #' @noRd
 #' @keywords internal
-extract_tables <- function(con, tables, out) {
+extractTables <- function(con, tables, rBit, officeBit, out = out) {
 
   # Pulling just the table names
   tableNames <- odbc::dbListTables(conn = con)
@@ -119,19 +121,23 @@ extract_tables <- function(con, tables, out) {
 
   DBI::dbDisconnect(con)
 
-  if (length(tables) != 1 & all(tables %in% "check")) {
-    # Save the table to be read back into R
+  if (rBit == "x64" & officeBit == "x32") {
     saveRDS(returnedTables, file = file.path(out, "savedAccessTables.rds"))
   } else {
     returnedTables
   }
+  # if (length(tables) != 1 & all(tables %in% "check")) {
+  #   # Save the table to be read back into R
+  #   saveRDS(returnedTables, file = file.path(out, "savedAccessTables.rds"))
+  # } else {
+  #   returnedTables
+  # }
 }
 
 #' Create the connection to an Access database and pull the requested tables.
 #'
 #' @param file File path to the Access database file.
 #' @param tables A vector of table names to pull. This can be left blank to provide a list of options
-#' @param out As needed. File path to save the outputted rds file if a 32-bit R is launched from the terminal.
 #'
 #' @return
 #' @export
@@ -141,8 +147,7 @@ extract_tables <- function(con, tables, out) {
 #'
 #' }
 #'
-bridge_access <- function(file, tables = "check",
-                         out = tempdir(), ...) {
+bridge_access <- function(file, tables = "check", ...) {
 
   fileType <- file(file)
 
@@ -168,25 +173,25 @@ bridge_access <- function(file, tables = "check",
 
   # First, check architecture. If ok then just source the script; if not then invoke system2
   bitCheck <- architectureCheck()
+  out <- tempdir()
 
   if (isTRUE(bitCheck$check)) {
-    # Args <<- c(file, out, tables)
+    con <- connectAccess(file)
 
-    # source(file = script)
-
-    con <- connect_access(file)
-
-    extract_tables(con = con,
+    extractTables(con = con,
                    tables = tables,
+                   rBit = bitCheck$rBit,
+                   officeBit = bitCheck$officeBit,
                    out = out)
   } else {
-    # file <- shQuote(normalizePath(file, winslash = "\\"))
-    # script <- shQuote(normalizePath(script, winslash = "\\"))
-    #
-    # terminalOutput <- system2(paste0(Sys.getenv("R_HOME"), "/bin/i386/Rscript.exe"),
-    #                           args = c(script,
-    #                                    file, out, tables))
-    #
-    # readRDS(file.path(out, "savedAccessTables.rds"))
+    file <- shQuote(normalizePath(file, winslash = "\\"))
+    script <- shQuote(normalizePath("support/connectAccessTerminal.R", winslash = "\\"))
+
+    terminalOutput <- system2(paste0(Sys.getenv("R_HOME"), "/bin/i386/Rscript.exe"),
+                              args = c(script,
+                                       file, bitCheck, out, tables))
+
+    # All is needed here in case length(tables) > 1 (throws warning)
+    if (all(tables != "check")) readRDS(file.path(tempdir(), "savedAccessTables.rds"))
   }
 }
