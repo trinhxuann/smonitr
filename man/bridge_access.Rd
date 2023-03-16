@@ -2,26 +2,25 @@
 % Please edit documentation in R/bridge_access.R
 \name{bridge_access}
 \alias{bridge_access}
-\title{Create the connection to an Access database and pull the requested tables.}
+\title{Create the connection to an Access database and pull the requested tables. This function will attempt to account for mismatched architectures (R vs Microsoft Access) but will take longer to execute if so.}
 \usage{
-bridge_access(file, tables = "check", out = tempdir(), ...)
+bridge_access(file, tables = "check", ...)
 }
 \arguments{
-\item{file}{File path to the Access database file.}
+\item{file}{File path to the Access database file. Can be a path to a hard drive or a URL.}
 
-\item{tables}{A vector of table names to pull. This can be left blank to provide a list of options}
-
-\item{out}{As needed. File path to save the outputted rds file if a 32-bit R is launched from the terminal.}
+\item{tables}{A vector of table names to determine which relational tables to pull. This can be left blank to provide a list of options. If a system table is provided, you may need to provide read permission before it will work. This has to be done in the Access DB itself, Ctrl + G, and run in the "Immediate" window: \verb{CurrentProject.Connection.Execute "GRANT SELECT ON MSysRelationships TO Admin;"}}
 }
 \value{
 
 }
 \description{
-Create the connection to an Access database and pull the requested tables.
+Create the connection to an Access database and pull the requested tables. This function will attempt to account for mismatched architectures (R vs Microsoft Access) but will take longer to execute if so.
 }
 \examples{
 \dontrun{
-
+bridge_access(file = "SKT.accdb")
+bridge_access(file = "SKT.accdb", tables = c("tblCatch", "tblSample"))
 }
 
 }
